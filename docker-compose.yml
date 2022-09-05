@@ -1,0 +1,119 @@
+version: '3.4'
+
+services:
+  subscriber:
+    image: ${DOCKER_REGISTRY-}subscriber
+    build:
+      context: .
+      dockerfile: Subscriber/Dockerfile
+    depends_on:
+      - redis
+      - zipkin
+      - kafka   
+
+  subscriber-dapr:
+    image: "daprio/daprd:1.8.0"
+    command: [ "./daprd", 
+    "-app-id", "subscriber", 
+    "-app-port", "80", 
+    "-components-path", "/components", 
+    "-config", "/components/config.yaml"]
+    volumes:
+      - "./components/:/components"
+    depends_on:
+      - subscriber
+    network_mode: "service:subscriber"
+    restart: on-failure
+
+
+
+  publisher:
+    image: ${DOCKER_REGISTRY-}publisher
+    build:
+      context: .
+      dockerfile: Publisher/Dockerfile
+    depends_on:
+      - redis
+      - zipkin
+      - kafka  
+
+  publisher-dapr:
+    image: "daprio/daprd:1.8.0"
+    command: [ "./daprd", 
+    "-app-id", "publisher", 
+    "-app-port", "80", 
+    "-components-path", "/components", 
+    "-config", "/components/config.yaml"]
+    volumes:
+      - "./components/:/components"
+    depends_on:
+      - publisher
+    network_mode: "service:publisher"
+    restart: on-failure
+
+
+  dapr-placement:
+    image: "daprio/dapr:1.8.0"
+    command: ["./placement", "-port", "50000", "-log-level", "debug"]
+    ports:
+      - "50000:50000"
+
+
+  ## Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 22181:2181
+  
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_MS: -1
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.4.0
+    container_name: kafka-ui
+    ports:
+      - "8088:8080"
+    restart: always
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+      - KAFKA_CLUSTERS_0_READONLY=false
+
+  redis:
+    image: "redis:alpine"
+    hostname: "my-redis"
+    ports:
+      - "6380:6379"
+
+
+  zipkin:
+    image: "openzipkin/zipkin"
+    ports: 
+     - "9411:9411"
+    restart: always
+
+volumes:
+  zoodata01:
+    external: false
+  zoodata02:
+    external: false
+  kafkadata01:
+    external: false 
+  kafkadata02:
+    external: false

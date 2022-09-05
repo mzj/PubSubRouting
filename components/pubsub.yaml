@@ -1,0 +1,29 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub
+  namespace: default
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+      # Kafka broker connection setting
+    - name: brokers
+      value: "kafka:9092"
+    - name: authRequired
+      value: "false"
+    - name: initialOffset
+      value: "oldest"
+    - name: maxMessageBytes
+      value: "20480"
+#apiVersion: dapr.io/v1alpha1
+#kind: Component
+#metadata:
+#  name: pubsub
+#spec:
+#  type: pubsub.redis
+#  metadata:
+#  - name: redisHost
+#    value: my-redis:6379
+#  - name: redisPassword
+#    value: ""
